@@ -48,6 +48,12 @@ func (o *CommandBuilder) For(ctx context.Context, dst Destination) *exec.Cmd {
 		args = append(args, "-p", strconv.Itoa(int(o.ExplicitPort)))
 	}
 
+	// If a TTY is wanted, use the '-tt' variant, as the weaker '-t' variant
+	// won't work since we are not forwarding STDIN
+	if o.TTY {
+		args = append(args, "-tt")
+	}
+
 	// If the destination has a user, we don't need to set it anywhere, as
 	// it will be rendered as "user@host", which has precedence over everything
 	// else.
