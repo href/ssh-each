@@ -20,15 +20,19 @@ func getApp() *cli.Cli {
 		Servers can be passed via -s/--servers, or STDIN.
 
 		Output Modes (-m/--mode):
-		  host: shows server before each outputted line, default
-		  plain: show output as-is
-		  check: show server and ✓ on success, x on failure, no output
-		  exit: show server and exit code, no output
-		  slient: show nothing
+		  host      shows server before each outputted line, default
+		  plain     show output as-is
+		  check     show server and ✓ on success, x on failure, no output
+		  check-yes show server and ✓ on success, nothing otherwise
+		  check-no  show server and x on success, nothing otherwise
+		  exit      show server and exit code, no output
+		  slient    show nothing
 
 		Exit Code:
 		  ssh-each will return an exit code of 0, if at least one command
 		  completed and all completed commands were successful.
+
+		  This can be overwritten by using --exit-ok.
 	`), "\r\n"))
 
 	app.Spec = strings.Join([]string{
@@ -38,15 +42,18 @@ func getApp() *cli.Cli {
 		"[-u=<user>]",
 		"[-p=<port>]",
 		"[-m=<mode>]",
+		"[--exit-ok]",
 		"COMMAND",
 	}, " ")
 
+	exitOK := false
 	builder := ssh.CommandBuilder{}
 	servers := app.StringOpt("s servers", "", "Comma separated servers")
 	workers := app.IntOpt("w workers", 16, "Concurrent SSH processes")
 	port := app.IntOpt("p port", 0, "Default port")
 	mode := app.StringOpt("m mode", "host", "Output mode")
 	app.BoolOptPtr(&builder.TTY, "t tty", false, "Use pseudo-terminal")
+	app.BoolOptPtr(&exitOK, "exit-ok", false, "Ignore server command errors")
 	app.StringOptPtr(&builder.ExplicitUser, "u user", "", "Default user")
 	app.StringArgPtr(&builder.Command, "COMMAND", "", "Command to execute")
 
@@ -58,7 +65,7 @@ func getApp() *cli.Cli {
 			os.Exit(1)
 		}
 
-		if !(0 <= *port && *port <= 65535) {
+		if *port < 0 || 65535 < *port {
 			fmt.Println("Invalid default port")
 			os.Exit(1)
 		}
@@ -99,7 +106,7 @@ func getApp() *cli.Cli {
 			rep.On(result)
 		}
 
-		if rep.Success() {
+		if exitOK || rep.Success() {
 			os.Exit(0)
 		} else {
 			os.Exit(1)

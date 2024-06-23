@@ -22,6 +22,12 @@ const (
 	// CheckReport shows the hostname and a ✓ or x depending on the exit code.
 	CheckReport
 
+	// CheckYesReport works like CheckReport, but hides x's
+	CheckYesReport
+
+	// CheckYesReport works like CheckReport, but hides ✓'s
+	CheckNoReport
+
 	// ExitReport shows the hostname and the exit code.
 	ExitReport
 
@@ -44,6 +50,10 @@ func ReportModeFromString(mode string) (ReportMode, bool) {
 		return PlainReport, true
 	case "check":
 		return CheckReport, true
+	case "check-yes":
+		return CheckYesReport, true
+	case "check-no":
+		return CheckNoReport, true
 	case "exit":
 		return ExitReport, true
 	case "silent":
@@ -65,9 +75,10 @@ type Report struct {
 
 // NewReport creates a new report.
 func NewReport(mode ReportMode) Report {
-	if !(MinReport <= mode && mode <= MaxReport) {
+	if mode < MinReport || MaxReport < mode {
 		panic(fmt.Sprintf("unsupported mode: %d", mode))
 	}
+
 	return Report{
 		mode:         mode,
 		exitCodes:    make([]int, 0),
@@ -136,6 +147,10 @@ func (r *Report) printOutput(file *os.File, server string, output string) {
 		return
 	case CheckReport:
 		return
+	case CheckYesReport:
+		return
+	case CheckNoReport:
+		return
 	case ExitReport:
 		return
 	case PlainReport:
@@ -180,6 +195,14 @@ func (r *Report) printResult(server string, exitCode int) {
 		}
 
 		fmt.Fprint(os.Stdout, server, ": ", mark, "\n")
+	case CheckYesReport:
+		if r.successCodes[exitCode] {
+			fmt.Fprint(os.Stdout, server, ": ✓\n")
+		}
+	case CheckNoReport:
+		if !r.successCodes[exitCode] {
+			fmt.Fprint(os.Stdout, server, ": x\n")
+		}
 	case ExitReport:
 		fmt.Fprint(os.Stdout, server, ": ", exitCode, "\n")
 	default:
